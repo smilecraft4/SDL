@@ -26,6 +26,8 @@
 #include "SDL_events_c.h"
 #include "SDL_pen_c.h"
 
+#include "../video/windows/SDL_windowswintab.h"
+
 static SDL_PenID pen_touching = 0;  // used for synthetic mouse/touch events.
 
 typedef struct SDL_Pen
@@ -96,6 +98,8 @@ SDL_PenID SDL_FindPenByCallback(bool (*callback)(void *handle, void *userdata), 
 
 bool SDL_InitPen(void)
 {
+    SDL_InitWintab();
+
     SDL_assert(pen_device_rwlock == NULL);
     SDL_assert(pen_devices == NULL);
     SDL_assert(pen_device_count == 0);
@@ -119,6 +123,8 @@ void SDL_QuitPen(void)
     }
     pen_device_count = 0;
     pen_touching = 0;
+
+    SDL_QuitWintab();
 }
 
 #if 0 // not a public API at the moment.

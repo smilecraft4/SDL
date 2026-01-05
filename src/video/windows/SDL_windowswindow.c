@@ -35,6 +35,7 @@
 #include "SDL_windowsvideo.h"
 #include "SDL_windowskeyboard.h"
 #include "SDL_windowswindow.h"
+#include "SDL_windowswintab.h"
 
 // Dropfile support
 #include <shellapi.h>
@@ -570,6 +571,8 @@ static bool SetupWindowData(SDL_VideoDevice *_this, SDL_Window *window, HWND hwn
     }
 #endif // !defined(SDL_PLATFORM_XBOXONE) && !defined(SDL_PLATFORM_XBOXSERIES)
 
+    SDL_OpenWintabCtx(hwnd);
+
     SDL_PropertiesID props = SDL_GetWindowProperties(window);
     SDL_SetPointerProperty(props, SDL_PROP_WINDOW_WIN32_HWND_POINTER, data->hwnd);
     SDL_SetPointerProperty(props, SDL_PROP_WINDOW_WIN32_HDC_POINTER, data->hdc);
@@ -584,6 +587,7 @@ static void CleanupWindowData(SDL_VideoDevice *_this, SDL_Window *window)
     SDL_WindowData *data = window->internal;
 
     if (data) {
+        SDL_CloseWintabCtx(data->hwnd);
 
 #if !defined(SDL_PLATFORM_XBOXONE) && !defined(SDL_PLATFORM_XBOXSERIES)
         if (data->drop_target) {
@@ -796,7 +800,7 @@ bool WIN_CreateWindow(SDL_VideoDevice *_this, SDL_Window *window, SDL_Properties
         if ((_this->gl_config.profile_mask == SDL_GL_CONTEXT_PROFILE_ES ||
              SDL_GetHintBoolean(SDL_HINT_VIDEO_FORCE_EGL, false))
 #ifdef SDL_VIDEO_OPENGL_WGL
-             && (!_this->gl_data || WIN_GL_UseEGL(_this))
+            && (!_this->gl_data || WIN_GL_UseEGL(_this))
 #endif // SDL_VIDEO_OPENGL_WGL
         ) {
 #ifdef SDL_VIDEO_OPENGL_EGL
@@ -817,7 +821,7 @@ bool WIN_CreateWindow(SDL_VideoDevice *_this, SDL_Window *window, SDL_Properties
             return false;
         }
 #else
-        return SDL_SetError("Could not create GL window (WGL support not configured)");
+    return SDL_SetError("Could not create GL window (WGL support not configured)");
 #endif
 #if !defined(SDL_PLATFORM_XBOXONE) && !defined(SDL_PLATFORM_XBOXSERIES)
     }
