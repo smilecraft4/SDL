@@ -1,6 +1,6 @@
 /*
   Simple DirectMedia Layer
-  Copyright (C) 1997-2025 Sam Lantinga <slouken@libsdl.org>
+  Copyright (C) 1997-2026 Sam Lantinga <slouken@libsdl.org>
 
   This software is provided 'as-is', without any express or implied
   warranty.  In no event will the authors be held liable for any damages
@@ -149,6 +149,8 @@
 #define USB_PRODUCT_THRUSTMASTER_ESWAPX_PRO_PS4           0xd00e
 #define USB_PRODUCT_THRUSTMASTER_T_FLIGHT_HOTAS_ONE       0xb68c
 #define USB_PRODUCT_VALVE_STEAM_CONTROLLER_DONGLE         0x1142
+#define USB_PRODUCT_VALVE_STEAM_PROTEUS_DONGLE            0x1304
+#define USB_PRODUCT_VALVE_STEAM_NEREID_DONGLE             0x1305
 #define USB_PRODUCT_VICTRIX_FS_PRO                        0x0203
 #define USB_PRODUCT_VICTRIX_FS_PRO_V2                     0x0207
 #define USB_PRODUCT_XBOX360_XUSB_CONTROLLER               0x02a1 // XUSB driver software PID
@@ -180,7 +182,10 @@
 
 // USB usage pages
 #define USB_USAGEPAGE_GENERIC_DESKTOP 0x0001
+#define USB_USAGEPAGE_SIMULATION      0x0002
+#define USB_USAGEPAGE_DEVICE_CONTROLS 0x0006
 #define USB_USAGEPAGE_BUTTON          0x0009
+#define USB_USAGEPAGE_CONSUMER        0x000C
 #define USB_USAGEPAGE_VENDOR_FLYDIGI  0xFFA0
 
 // USB usages for USAGE_PAGE_GENERIC_DESKTOP
@@ -201,6 +206,22 @@
 #define USB_USAGE_GENERIC_DIAL                0x0037
 #define USB_USAGE_GENERIC_WHEEL               0x0038
 #define USB_USAGE_GENERIC_HAT                 0x0039
+
+// USB usages for USB_USAGEPAGE_SIMULATION
+#define USB_USAGE_SIMULATION_ACCELERATOR      0x00C4
+#define USB_USAGE_SIMULATION_BRAKE            0x00C5
+
+// USB usages for USB_USAGEPAGE_DEVICE_CONTROLS
+#define USB_USAGE_DEVICE_CONTROLS_BATTERY_STRENGTH 0x0020
+
+// USB usages for USB_USAGEPAGE_CONSUMER
+#define USB_USAGE_CONSUMER_ASSIGN_SELECTION   0x0081
+#define USB_USAGE_CONSUMER_ORDER_MOVIE        0x0085
+#define USB_USAGE_CONSUMER_RECORD             0x00B2
+#define USB_USAGE_CONSUMER_AC_HOME            0x0223
+#define USB_USAGE_CONSUMER_AC_BACK            0x0224
+
+#define MAKE_USAGE(PAGE, USAGE) (((Uint32)PAGE) << 16 | USAGE)
 
 /* Bluetooth SIG assigned Company Identifiers
    https://www.bluetooth.com/specifications/assigned-numbers/company-identifiers/ */

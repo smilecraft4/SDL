@@ -1,6 +1,6 @@
 /*
   Simple DirectMedia Layer
-  Copyright (C) 1997-2025 Sam Lantinga <slouken@libsdl.org>
+  Copyright (C) 1997-2026 Sam Lantinga <slouken@libsdl.org>
 
   This software is provided 'as-is', without any express or implied
   warranty.  In no event will the authors be held liable for any damages
@@ -1011,13 +1011,10 @@ static int XLookupStringAsUTF8(XKeyEvent *event_struct, char *buffer_return, int
     return result;
 }
 
-SDL_WindowData *X11_FindWindow(SDL_VideoDevice *_this, Window window)
+SDL_WindowData *X11_FindWindow(SDL_VideoData *videodata, Window window)
 {
-    const SDL_VideoData *videodata = _this->internal;
-    int i;
-
     if (videodata && videodata->windowlist) {
-        for (i = 0; i < videodata->numwindows; ++i) {
+        for (int i = 0; i < videodata->numwindows; ++i) {
             if ((videodata->windowlist[i] != NULL) &&
                 (videodata->windowlist[i]->xwindow == window)) {
                 return videodata->windowlist[i];
@@ -1180,6 +1177,10 @@ void X11_HandleButtonRelease(SDL_VideoDevice *_this, SDL_WindowData *windowdata,
             button -= (8 - SDL_BUTTON_X1);
         }
         SDL_SendMouseButton(timestamp, window, mouseID, button, false);
+
+        if (window->internal->pending_grab) {
+            X11_SetWindowMouseGrab(_this, window, true);
+        }
     }
 }
 
@@ -1215,34 +1216,29 @@ void X11_GetBorderValues(SDL_WindowData *data)
 
 void X11_EmitConfigureNotifyEvents(SDL_WindowData *data, XConfigureEvent *xevent)
 {
-    if (xevent->x != data->last_xconfigure.x ||
-        xevent->y != data->last_xconfigure.y) {
-        if (!data->size_move_event_flags) {
-            SDL_Window *w;
-            int x = xevent->x;
-            int y = xevent->y;
+    if (!data->size_move_event_flags) {
+        int x = xevent->x;
+        int y = xevent->y;
 
+        if (xevent->x != data->last_xconfigure.x ||
+            xevent->y != data->last_xconfigure.y) {
             data->pending_operation &= ~X11_PENDING_OP_MOVE;
-            SDL_GlobalToRelativeForWindow(data->window, x, y, &x, &y);
-            SDL_SendWindowEvent(data->window, SDL_EVENT_WINDOW_MOVED, x, y);
+        }
+        SDL_GlobalToRelativeForWindow(data->window, x, y, &x, &y);
+        SDL_SendWindowEvent(data->window, SDL_EVENT_WINDOW_MOVED, x, y);
 
-            for (w = data->window->first_child; w; w = w->next_sibling) {
-                // Don't update hidden child popup windows, their relative position doesn't change
-                if (SDL_WINDOW_IS_POPUP(w) && !(w->flags & SDL_WINDOW_HIDDEN)) {
-                    X11_UpdateWindowPosition(w, true);
-                }
+        for (SDL_Window *w = data->window->first_child; w; w = w->next_sibling) {
+            // Don't update hidden child popup windows, their relative position doesn't change
+            if (SDL_WINDOW_IS_POPUP(w) && !(w->flags & SDL_WINDOW_HIDDEN)) {
+                X11_UpdateWindowPosition(w, true);
             }
         }
-    }
 
-    if (xevent->width != data->last_xconfigure.width ||
-        xevent->height != data->last_xconfigure.height) {
-        if (!data->size_move_event_flags) {
+        if (xevent->width != data->last_xconfigure.width ||
+            xevent->height != data->last_xconfigure.height) {
             data->pending_operation &= ~X11_PENDING_OP_RESIZE;
-            SDL_SendWindowEvent(data->window, SDL_EVENT_WINDOW_RESIZED,
-                                xevent->width,
-                                xevent->height);
         }
+        SDL_SendWindowEvent(data->window, SDL_EVENT_WINDOW_RESIZED, xevent->width, xevent->height);
     }
 
     SDL_copyp(&data->last_xconfigure, xevent);
@@ -1337,7 +1333,7 @@ static void X11_DispatchEvent(SDL_VideoDevice *_this, XEvent *xevent)
     // xsettings internally filters events for the windows it watches
     X11_HandleXsettingsEvent(_this, xevent);
 
-    data = X11_FindWindow(_this, xevent->xany.window);
+    data = X11_FindWindow(videodata, xevent->xany.window);
 
     if (!data) {
         // The window for KeymapNotify, etc events is 0
@@ -1835,7 +1831,7 @@ static void X11_DispatchEvent(SDL_VideoDevice *_this, XEvent *xevent)
 
     case MotionNotify:
     {
-        if (data->xinput2_mouse_enabled && !data->mouse_grabbed) {
+        if (X11_Xinput2HandlesMotionForWindow(data)) {
             // This input is being handled by XInput2
             break;
         }

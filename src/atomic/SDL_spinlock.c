@@ -1,6 +1,6 @@
 /*
   Simple DirectMedia Layer
-  Copyright (C) 1997-2025 Sam Lantinga <slouken@libsdl.org>
+  Copyright (C) 1997-2026 Sam Lantinga <slouken@libsdl.org>
 
   This software is provided 'as-is', without any express or implied
   warranty.  In no event will the authors be held liable for any damages
@@ -91,7 +91,7 @@ bool SDL_TryLockSpinlock(SDL_SpinLock *lock)
         : "cc", "memory");
     return result == 0;
 
-#elif defined(__GNUC__) && (defined(__i386__) || defined(__x86_64__))
+#elif (defined(__GNUC__) || defined(__TINYC__)) && (defined(__i386__) || defined(__x86_64__))
     int result;
     __asm__ __volatile__(
         "lock ; xchgl %0, (%1)\n"

@@ -1,6 +1,6 @@
 /*
   Simple DirectMedia Layer
-  Copyright (C) 1997-2025 Sam Lantinga <slouken@libsdl.org>
+  Copyright (C) 1997-2026 Sam Lantinga <slouken@libsdl.org>
 
   This software is provided 'as-is', without any express or implied
   warranty.  In no event will the authors be held liable for any damages
@@ -201,6 +201,8 @@
 #cmakedefine HAVE_ELF_AUX_INFO 1
 #cmakedefine HAVE_PPOLL 1
 #cmakedefine HAVE__EXIT 1
+#cmakedefine HAVE_GETRESUID 1
+#cmakedefine HAVE_GETRESGID 1
 
 #endif /* HAVE_LIBC */
 
@@ -218,6 +220,8 @@
 #cmakedefine HAVE_LIBURING_H 1
 #cmakedefine HAVE_FRIBIDI_H 1
 #cmakedefine SDL_FRIBIDI_DYNAMIC @SDL_FRIBIDI_DYNAMIC@
+#cmakedefine HAVE_LIBTHAI_H 1
+#cmakedefine SDL_LIBTHAI_DYNAMIC @SDL_LIBTHAI_DYNAMIC@
 
 #cmakedefine HAVE_DDRAW_H 1
 #cmakedefine HAVE_DSOUND_H 1

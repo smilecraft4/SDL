@@ -1,6 +1,6 @@
 /*
   Simple DirectMedia Layer
-  Copyright (C) 1997-2025 Sam Lantinga <slouken@libsdl.org>
+  Copyright (C) 1997-2026 Sam Lantinga <slouken@libsdl.org>
 
   This software is provided 'as-is', without any express or implied
   warranty.  In no event will the authors be held liable for any damages
@@ -581,6 +581,11 @@ static void WIN_HandleRawMouseInput(Uint64 timestamp, SDL_VideoData *data, HANDL
         return;
     }
 
+    SDL_Mouse *mouse = SDL_GetMouse();
+    if (!mouse) {
+        return;
+    }
+
     if (GetMouseMessageSource(rawmouse->ulExtraInformation) != SDL_MOUSE_EVENT_SOURCE_MOUSE ||
         (SDL_TouchDevicesAvailable() && (rawmouse->ulExtraInformation & 0x80) == 0x80)) {
         return;
@@ -650,7 +655,7 @@ static void WIN_HandleRawMouseInput(Uint64 timestamp, SDL_VideoData *data, HANDL
                         }
                     }
                 }
-            } else {
+            } else if (mouse->pen_mouse_events) {
                 const int MAXIMUM_TABLET_RELATIVE_MOTION = 32;
                 if (SDL_abs(relX) > MAXIMUM_TABLET_RELATIVE_MOTION ||
                     SDL_abs(relY) > MAXIMUM_TABLET_RELATIVE_MOTION) {
@@ -658,6 +663,14 @@ static void WIN_HandleRawMouseInput(Uint64 timestamp, SDL_VideoData *data, HANDL
                 } else {
                     SDL_SendMouseMotion(timestamp, window, mouseID, true, (float)relX, (float)relY);
                 }
+            } else {
+                int screen_x = virtual_desktop ? GetSystemMetrics(SM_XVIRTUALSCREEN) : 0;
+                int screen_y = virtual_desktop ? GetSystemMetrics(SM_YVIRTUALSCREEN) : 0;
+
+                if (!data->raw_input_fake_pen_id) {
+                    data->raw_input_fake_pen_id = SDL_AddPenDevice(timestamp, "raw mouse input", window, NULL, (void *)(size_t)-1, true);
+                }
+                SDL_SendPenMotion(timestamp, data->raw_input_fake_pen_id, window, (float)(x + screen_x - window->x), (float)(y + screen_y - window->y));
             }
 
             data->last_raw_mouse_position.x = x;
@@ -1203,7 +1216,7 @@ LRESULT CALLBACK WIN_WindowProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lPara
             if(in_hctx) {
                 SDL_Log("Entered Context");
                 SDL_PenInfo info = SDL_GetWintabPenInfo(&info);
-                SDL_AddPenDevice(WIN_GetEventTimestamp(), "Wintab pen", &info, hctx); // We pass the hctx to identify this pen (likely bug prone)
+                SDL_AddPenDevice(WIN_GetEventTimestamp(), "Wintab pen", data->window, &info, hctx, true); // We pass the hctx to identify this pen (likely bug prone)
             } else {
                 SDL_Log("Exited Context");
                 const SDL_PenID pen = SDL_FindPenByHandle(hctx);
@@ -1211,7 +1224,7 @@ LRESULT CALLBACK WIN_WindowProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lPara
                     break;  // not a pen, or not a pen we already knew about.
                 }
                 
-                SDL_RemovePenDevice(WIN_GetEventTimestamp(), pen);
+                SDL_RemovePenDevice(WIN_GetEventTimestamp(), data->window, pen);
             }
             returnCode = 0;
             break;
@@ -1280,7 +1293,7 @@ LRESULT CALLBACK WIN_WindowProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lPara
             info.max_tilt = 90.0f;
             info.num_buttons = 1;
             info.subtype = SDL_PEN_TYPE_PENCIL;
-            SDL_AddPenDevice(0, NULL, &info, hpointer);
+            SDL_AddPenDevice(0, NULL, data->window, &info, hpointer, true);
             returnCode = 0;
         } break;
 
@@ -1296,7 +1309,7 @@ LRESULT CALLBACK WIN_WindowProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lPara
 
             // if this just left the _window_, we don't care. If this is no longer visible to the tablet, time to remove it!
             if ((msg == WM_POINTERCAPTURECHANGED) || !IS_POINTER_INCONTACT_WPARAM(wParam)) {
-                SDL_RemovePenDevice(WIN_GetEventTimestamp(), pen);
+                SDL_RemovePenDevice(WIN_GetEventTimestamp(), data->window, pen);
             }
             returnCode = 0;
         } break;
@@ -2570,6 +2583,26 @@ void WIN_SendWakeupEvent(SDL_VideoDevice *_this, SDL_Window *window)
     PostMessage(data->hwnd, data->videodata->_SDL_WAKEUP, 0, 0);
 }
 
+// Simplified event pump for using when creating and destroying windows
+void WIN_PumpEventsForHWND(SDL_VideoDevice *_this, HWND hwnd)
+{
+    MSG msg;
+
+    if (g_WindowsEnableMessageLoop) {
+        SDL_processing_messages = true;
+
+        while (PeekMessage(&msg, hwnd, 0, 0, PM_REMOVE)) {
+            WIN_SetMessageTick(msg.time);
+
+            // Always translate the message in case it's a non-SDL window (e.g. with Qt integration)
+            TranslateMessage(&msg);
+            DispatchMessage(&msg);
+        }
+
+        SDL_processing_messages = false;
+    }
+}
+
 void WIN_PumpEvents(SDL_VideoDevice *_this)
 {
     MSG msg;
@@ -2798,7 +2831,7 @@ bool SDL_RegisterApp(const char *name, Uint32 style, void *hInst)
     wcex.cbSize = sizeof(WNDCLASSEX);
     wcex.lpszClassName = SDL_Appname;
     wcex.style = SDL_Appstyle;
-    wcex.lpfnWndProc = DefWindowProc;
+    wcex.lpfnWndProc = WIN_WindowProc;
     wcex.hInstance = SDL_Instance;
 
 #if !defined(SDL_PLATFORM_XBOXONE) && !defined(SDL_PLATFORM_XBOXSERIES)

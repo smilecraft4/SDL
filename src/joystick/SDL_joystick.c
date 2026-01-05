@@ -1,6 +1,6 @@
 /*
   Simple DirectMedia Layer
-  Copyright (C) 1997-2025 Sam Lantinga <slouken@libsdl.org>
+  Copyright (C) 1997-2026 Sam Lantinga <slouken@libsdl.org>
 
   This software is provided 'as-is', without any express or implied
   warranty.  In no event will the authors be held liable for any damages
@@ -449,6 +449,8 @@ static Uint32 initial_blacklist_devices[] = {
     MAKE_VIDPID(0x31e3, 0x1310), // Wooting 60HE (ARM)
     MAKE_VIDPID(0x3297, 0x1969), // Moonlander MK1 Keyboard
     MAKE_VIDPID(0x3434, 0x0211), // Keychron K1 Pro System Control
+    MAKE_VIDPID(0x3434, 0x0353), // Keychron V5 System Control
+    MAKE_VIDPID(0x3434, 0xd030), // Keychron Link
 };
 static SDL_vidpid_list blacklist_devices = {
     SDL_HINT_JOYSTICK_BLACKLIST_DEVICES, 0, 0, NULL,
@@ -990,6 +992,8 @@ static const char *SDL_UpdateJoystickNameForID(SDL_JoystickID instance_id)
     const char *current_name = NULL;
     const SDL_SteamVirtualGamepadInfo *info;
 
+    SDL_AssertJoysticksLocked();
+
     info = SDL_GetJoystickVirtualGamepadInfoForID(instance_id);
     if (info) {
         current_name = info->name;
@@ -1077,6 +1081,8 @@ int SDL_GetJoystickPlayerIndexForID(SDL_JoystickID instance_id)
 static bool SDL_JoystickAxesCenteredAtZero(SDL_Joystick *joystick)
 {
     // printf("JOYSTICK '%s' VID/PID 0x%.4x/0x%.4x AXES: %d\n", joystick->name, vendor, product, joystick->naxes);
+
+    SDL_AssertJoysticksLocked();
 
     if (joystick->naxes == 2) {
         // Assume D-pad or thumbstick style axes are centered at 0
@@ -1694,9 +1700,17 @@ int SDL_GetNumJoystickHats(SDL_Joystick *joystick)
  */
 int SDL_GetNumJoystickBalls(SDL_Joystick *joystick)
 {
-    CHECK_JOYSTICK_MAGIC(joystick, -1);
+    int result;
 
-    return joystick->nballs;
+    SDL_LockJoysticks();
+    {
+        CHECK_JOYSTICK_MAGIC(joystick, -1);
+
+        result = joystick->nballs;
+    }
+    SDL_UnlockJoysticks();
+
+    return result;
 }
 
 /*
@@ -2678,6 +2692,8 @@ static void SendSteamHandleUpdateEvents(void)
     SDL_Joystick *joystick;
     const SDL_SteamVirtualGamepadInfo *info;
 
+    SDL_AssertJoysticksLocked();
+
     // Check to see if any Steam handles changed
     for (joystick = SDL_joysticks; joystick; joystick = joystick->next) {
         bool changed = false;
@@ -3293,6 +3309,12 @@ bool SDL_IsJoystickSteamDeck(Uint16 vendor_id, Uint16 product_id)
 {
     EControllerType eType = GuessControllerType(vendor_id, product_id);
     return eType == k_eControllerType_SteamControllerNeptune;
+}
+
+bool SDL_IsJoystickSteamTriton(Uint16 vendor_id, Uint16 product_id)
+{
+    EControllerType eType = GuessControllerType(vendor_id, product_id);
+    return eType == k_eControllerType_SteamControllerTriton;
 }
 
 bool SDL_IsJoystickXInput(SDL_GUID guid)
@@ -3939,9 +3961,15 @@ void SDL_LoadVIDPIDList(SDL_vidpid_list *list)
 
     if (list->included_hint_name) {
         included_list = SDL_GetHint(list->included_hint_name);
+        if (!included_list) {
+            included_list = SDL_getenv_unsafe(list->included_hint_name);
+        }
     }
     if (list->excluded_hint_name) {
         excluded_list = SDL_GetHint(list->excluded_hint_name);
+        if (!excluded_list) {
+            excluded_list = SDL_getenv_unsafe(list->excluded_hint_name);
+        }
     }
     SDL_LoadVIDPIDListFromHints(list, included_list, excluded_list);
 }

@@ -1,6 +1,6 @@
 /*
   Simple DirectMedia Layer
-  Copyright (C) 1997-2025 Sam Lantinga <slouken@libsdl.org>
+  Copyright (C) 1997-2026 Sam Lantinga <slouken@libsdl.org>
 
   This software is provided 'as-is', without any express or implied
   warranty.  In no event will the authors be held liable for any damages
@@ -2667,7 +2667,7 @@ extern SDL_DECLSPEC void * SDLCALL SDL_memset4(void *dst, Uint32 val, size_t dwo
  * \since This macro is available since SDL 3.2.0.
  *
  * \sa SDL_zero
- * \sa SDL_zeroa
+ * \sa SDL_zerop
  */
 #define SDL_zeroa(x) SDL_memset((x), 0, sizeof((x)))
 

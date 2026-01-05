@@ -1,6 +1,6 @@
 /*
   Simple DirectMedia Layer
-  Copyright (C) 1997-2025 Sam Lantinga <slouken@libsdl.org>
+  Copyright (C) 1997-2026 Sam Lantinga <slouken@libsdl.org>
 
   This software is provided 'as-is', without any express or implied
   warranty.  In no event will the authors be held liable for any damages
@@ -398,7 +398,7 @@ static int get_plane_id(SDL_VideoDevice *_this, unsigned int crtc_id, uint32_t p
                 drmModePropertyPtr p = KMSDRM_drmModeGetProperty(viddata->drm_fd,
                     props->props[j]);
 
-                if ((strcmp(p->name, "type") == 0) && (props->prop_values[j] == plane_type)) {
+                if ((SDL_strcmp(p->name, "type") == 0) && (props->prop_values[j] == plane_type)) {
                     /* found our plane, use that: */
                     found = 1;
                 }

@@ -1,6 +1,6 @@
 /*
   Simple DirectMedia Layer
-  Copyright (C) 1997-2025 Sam Lantinga <slouken@libsdl.org>
+  Copyright (C) 1997-2026 Sam Lantinga <slouken@libsdl.org>
 
   This software is provided 'as-is', without any express or implied
   warranty.  In no event will the authors be held liable for any damages
@@ -270,7 +270,7 @@ static SDL_Cursor *X11_CreateAnimatedCursor(SDL_CursorFrameInfo *frames, int num
         x11_cursor = X11_CreatePixmapCursor(frames[0].surface, hot_x, hot_y);
     }
 
-    return X11_CreateCursorAndData(x11_cursor);;
+    return X11_CreateCursorAndData(x11_cursor);
 }
 
 static unsigned int GetLegacySystemCursorShape(SDL_SystemCursor id)

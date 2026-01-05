@@ -675,6 +675,9 @@
     <ClInclude Include="..\..\src\joystick\hidapi\SDL_hidapi_rumble.h">
       <Filter>joystick\hidapi</Filter>
     </ClInclude>
+    <ClInclude Include="..\..\src\joystick\hidapi\SDL_report_descriptor.h">
+      <Filter>joystick\hidapi</Filter>
+    </ClInclude>
     <ClInclude Include="..\..\src\joystick\windows\SDL_dinputjoystick_c.h">
       <Filter>joystick\windows</Filter>
     </ClInclude>
@@ -1305,6 +1308,9 @@
     <ClCompile Include="..\..\src\joystick\hidapi\SDL_hidapijoystick.c">
       <Filter>joystick\hidapi</Filter>
     </ClCompile>
+    <ClCompile Include="..\..\src\joystick\hidapi\SDL_report_descriptor.c">
+      <Filter>joystick\hidapi</Filter>
+    </ClCompile>
     <ClCompile Include="..\..\src\joystick\windows\SDL_dinputjoystick.c">
       <Filter>joystick\windows</Filter>
     </ClCompile>
@@ -1539,8 +1545,6 @@
     <ClCompile Include="..\..\src\sensor\windows\SDL_windowssensor.c">
       <Filter>sensor\windows</Filter>
     </ClCompile>
-      <Filter>render</Filter>
-    </ClCompile>
     <ClCompile Include="..\..\src\render\SDL_render.c">
       <Filter>render</Filter>
     </ClCompile>
@@ -1660,6 +1664,9 @@
     <ClCompile Include="..\..\src\storage\generic\SDL_genericstorage.c" />
     <ClCompile Include="..\..\src\storage\steam\SDL_steamstorage.c" />
     <ClCompile Include="..\..\src\storage\SDL_storage.c" />
+    <ClCompile Include="..\..\src\joystick\hidapi\SDL_hidapi_steam_triton.c">
+      <Filter>joystick\hidapi</Filter>
+    </ClCompile>
     <ClCompile Include="..\..\src\events\SDL_eventwatch.c" />
     <ClCompile Include="..\..\src\core\windows\pch_cpp.cpp">
       <Filter>core\windows</Filter>

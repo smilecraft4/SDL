@@ -1,6 +1,6 @@
 /*
   Simple DirectMedia Layer
-  Copyright (C) 1997-2025 Sam Lantinga <slouken@libsdl.org>
+  Copyright (C) 1997-2026 Sam Lantinga <slouken@libsdl.org>
 
   This software is provided 'as-is', without any express or implied
   warranty.  In no event will the authors be held liable for any damages
@@ -33,10 +33,12 @@
 #include "hidapi/SDL_hidapi_nintendo.h"
 #include "hidapi/SDL_hidapi_sinput.h"
 #include "../events/SDL_events_c.h"
+#include "../SDL_hints_c.h"
 
-
-#ifdef SDL_PLATFORM_ANDROID
+#ifdef SDL_PLATFORM_WIN32
+#include "../core/windows/SDL_windows.h"
 #endif
+
 
 // Many gamepads turn the center button into an instantaneous button press
 #define SDL_MINIMUM_GUIDE_BUTTON_DELAY_MS 250
@@ -375,6 +377,8 @@ static void RecenterGamepad(SDL_Gamepad *gamepad)
 static const char *SDL_UpdateGamepadNameForID(SDL_JoystickID instance_id)
 {
     const char *current_name = NULL;
+
+    SDL_AssertJoysticksLocked();
 
     GamepadMapping_t *mapping = SDL_PrivateGetGamepadMapping(instance_id, true);
     if (mapping) {
@@ -805,12 +809,14 @@ static inline void SDL_SInputStylesMapExtraction(SDL_SInputStyles_t* styles, cha
     int current_button = 0;
     int current_axis = 0;
     int misc_buttons = 0;
+    int misc_button, misc_end;
     bool digital_triggers = false;
     bool dualstage_triggers = false;
     int bumpers = 0;
     bool left_stick = false;
     bool right_stick = false;
     int paddle_pairs = 0;
+    char misc_label[32];
 
     // Determine how many misc buttons are used
     switch (styles->misc_style) {
@@ -833,6 +839,9 @@ static inline void SDL_SInputStylesMapExtraction(SDL_SInputStyles_t* styles, cha
     default:
         break;
     }
+    // The share button is reserved as misc1, additional buttons start at misc2
+    misc_button = 2;
+    misc_end = misc_button + misc_buttons;
 
     // Analog joysticks (always come first in axis mapping)
     switch (styles->analog_style) {
@@ -944,29 +953,14 @@ static inline void SDL_SInputStylesMapExtraction(SDL_SInputStyles_t* styles, cha
         SDL_ADD_BUTTON_MAPPING("righttrigger", current_button++, mapping_string_len);
     } else if (dualstage_triggers) {
         // Dual-stage trigger buttons are appended as MISC buttons
-        // but only if we have the space to use them.
-        if (misc_buttons <= 2) {
-            switch (misc_buttons) {
-            case 0:
-                SDL_ADD_BUTTON_MAPPING("misc3", current_button++, mapping_string_len);
-                SDL_ADD_BUTTON_MAPPING("misc4", current_button++, mapping_string_len);
-                break;
-
-            case 1:
-                SDL_ADD_BUTTON_MAPPING("misc4", current_button++, mapping_string_len);
-                SDL_ADD_BUTTON_MAPPING("misc5", current_button++, mapping_string_len);
-                break;
-
-            case 2:
-                SDL_ADD_BUTTON_MAPPING("misc5", current_button++, mapping_string_len);
-                SDL_ADD_BUTTON_MAPPING("misc6", current_button++, mapping_string_len);
-                break;
-
-            default:
-                // We do not overwrite other misc buttons if they are used.
-                break;
-            }
+        // By convention the trigger buttons are misc3 and misc4 for GameCube style controllers
+        if (misc_end < 3) {
+            misc_end = 3;
         }
+        SDL_snprintf(misc_label, sizeof(misc_label), "misc%d", misc_end++);
+        SDL_ADD_BUTTON_MAPPING(misc_label, current_button++, mapping_string_len);
+        SDL_snprintf(misc_label, sizeof(misc_label), "misc%d", misc_end++);
+        SDL_ADD_BUTTON_MAPPING(misc_label, current_button++, mapping_string_len);
     }
 
     // Paddle 1/2
@@ -1015,38 +1009,18 @@ static inline void SDL_SInputStylesMapExtraction(SDL_SInputStyles_t* styles, cha
 
     case SINPUT_TOUCHSTYLE_DOUBLE:
         SDL_ADD_BUTTON_MAPPING("touchpad", current_button++, mapping_string_len);
-        SDL_ADD_BUTTON_MAPPING("misc2", current_button++, mapping_string_len);
+        // Add the second touchpad button at the end of the misc buttons
+        SDL_snprintf(misc_label, sizeof(misc_label), "misc%d", misc_end++);
+        SDL_ADD_BUTTON_MAPPING(misc_label, current_button++, mapping_string_len);
         break;
 
     default:
         break;
     }
 
-    switch (misc_buttons) {
-    case 1:
-        SDL_ADD_BUTTON_MAPPING("misc3", current_button++, mapping_string_len);
-        break;
-
-    case 2:
-        SDL_ADD_BUTTON_MAPPING("misc3", current_button++, mapping_string_len);
-        SDL_ADD_BUTTON_MAPPING("misc4", current_button++, mapping_string_len);
-        break;
-
-    case 3:
-        SDL_ADD_BUTTON_MAPPING("misc3", current_button++, mapping_string_len);
-        SDL_ADD_BUTTON_MAPPING("misc4", current_button++, mapping_string_len);
-        SDL_ADD_BUTTON_MAPPING("misc5", current_button++, mapping_string_len);
-        break;
-
-    case 4:
-        SDL_ADD_BUTTON_MAPPING("misc3", current_button++, mapping_string_len);
-        SDL_ADD_BUTTON_MAPPING("misc4", current_button++, mapping_string_len);
-        SDL_ADD_BUTTON_MAPPING("misc5", current_button++, mapping_string_len);
-        SDL_ADD_BUTTON_MAPPING("misc6", current_button++, mapping_string_len);
-        break;
-
-    default:
-        break;
+    for (int i = 0; i < misc_buttons; ++i) {
+        SDL_snprintf(misc_label, sizeof(misc_label), "misc%d", misc_button++);
+        SDL_ADD_BUTTON_MAPPING(misc_label, current_button++, mapping_string_len);
     }
 }
 
@@ -1179,7 +1153,7 @@ static GamepadMapping_t *SDL_CreateMappingForHIDAPIGamepad(SDL_GUID guid)
             SDL_strlcat(mapping_string, "a:b0,b:b1,back:b4,dpdown:h0.4,dpleft:h0.8,dpright:h0.2,dpup:h0.1,leftshoulder:b9,lefttrigger:a4,rightshoulder:b10,righttrigger:a5,start:b6,x:b2,y:b3,hint:!SDL_GAMECONTROLLER_USE_BUTTON_LABELS:=1,", sizeof(mapping_string));
             break;
         case k_eSwitchDeviceInfoControllerType_N64:
-            SDL_strlcat(mapping_string, "a:b0,b:b1,back:b4,dpdown:h0.4,dpleft:h0.8,dpright:h0.2,dpup:h0.1,guide:b5,leftshoulder:b9,leftstick:b7,lefttrigger:a4,leftx:a0,lefty:a1,rightshoulder:b10,righttrigger:a5,start:b6,x:b2,y:b3,misc1:b11,", sizeof(mapping_string));
+            SDL_strlcat(mapping_string, "a:b0,b:b1,back:b3,dpdown:h0.4,dpleft:h0.8,dpright:h0.2,dpup:h0.1,guide:b5,leftshoulder:b9,lefttrigger:a4,leftx:a0,lefty:a1,misc1:b11,misc2:b4,rightshoulder:b10,righttrigger:b7,start:b6,x:a5,y:b2,", sizeof(mapping_string));
             break;
         case k_eSwitchDeviceInfoControllerType_SEGA_Genesis:
             SDL_strlcat(mapping_string, "a:b0,b:b1,dpdown:h0.4,dpleft:h0.8,dpright:h0.2,dpup:h0.1,guide:b5,leftshoulder:b9,rightshoulder:b10,righttrigger:a5,start:b6,x:b2,y:b3,misc1:b11,", sizeof(mapping_string));
@@ -1252,6 +1226,9 @@ static GamepadMapping_t *SDL_CreateMappingForHIDAPIGamepad(SDL_GUID guid)
         if (SDL_IsJoystickSteamController(vendor, product)) {
             // Steam controllers have 2 back paddle buttons
             SDL_strlcat(mapping_string, "paddle1:b11,paddle2:b12,", sizeof(mapping_string));
+        } else if (SDL_IsJoystickSteamTriton(vendor, product)) {
+            // Second generation Steam controllers have 4 back paddle buttons
+            SDL_strlcat(mapping_string, "misc1:b11,paddle1:b12,paddle2:b13,paddle3:b14,paddle4:b15", sizeof(mapping_string));
         } else if (SDL_IsJoystickNintendoSwitchPro(vendor, product) ||
                    SDL_IsJoystickNintendoSwitchProInputOnly(vendor, product)) {
             // Nintendo Switch Pro controllers have a screenshot button
@@ -1281,6 +1258,10 @@ static GamepadMapping_t *SDL_CreateMappingForHIDAPIGamepad(SDL_GUID guid)
             if (guid.data[15] >= SDL_FLYDIGI_VADER2) {
                 // Vader series of controllers have C/Z buttons
                 SDL_strlcat(mapping_string, "misc2:b15,misc3:b16,", sizeof(mapping_string));
+                if (guid.data[15] == SDL_FLYDIGI_VADER5_PRO) {
+                    // Vader 5 has additional shoulder macro buttons and a circle button
+                    SDL_strlcat(mapping_string, "misc4:b17,misc5:b18,misc6:b19", sizeof(mapping_string));
+                }
             } else if (guid.data[15] == SDL_FLYDIGI_APEX5) {
                 // Apex 5 has additional shoulder macro buttons
                 SDL_strlcat(mapping_string, "misc2:b15,misc3:b16,", sizeof(mapping_string));
@@ -1920,6 +1901,8 @@ static void SDL_UpdateGamepadFaceStyle(SDL_Gamepad *gamepad)
 
 static void SDL_FixupHIDAPIMapping(SDL_Gamepad *gamepad)
 {
+    SDL_AssertJoysticksLocked();
+
     // Check to see if we need fixup
     bool need_fixup = false;
     for (int i = 0; i < gamepad->num_bindings; ++i) {
@@ -2638,7 +2621,11 @@ static int SDL_PrivateAddGamepadMapping(const char *mappingString, SDL_GamepadMa
                 }
 
             } else {
-                value = SDL_GetHintBoolean(hint, default_value);
+                const char *hint_value = SDL_GetHint(hint);
+                if (!hint_value) {
+                    hint_value = SDL_getenv_unsafe(hint);
+                }
+                value = SDL_GetStringBoolean(hint_value, default_value);
                 if (negate) {
                     value = !value;
                 }
@@ -3257,19 +3244,20 @@ bool SDL_ShouldIgnoreGamepad(Uint16 vendor_id, Uint16 product_id, Uint16 version
         }
     }
 
+    const char *hint = SDL_getenv_unsafe("SDL_GAMECONTROLLER_ALLOW_STEAM_VIRTUAL_GAMEPAD");
+    bool allow_steam_virtual_gamepad = SDL_GetStringBoolean(hint, false);
 #ifdef SDL_PLATFORM_WIN32
-    if (SDL_GetHintBoolean("SDL_GAMECONTROLLER_ALLOW_STEAM_VIRTUAL_GAMEPAD", false) &&
-        SDL_GetHintBoolean("STEAM_COMPAT_PROTON", false)) {
-        // We are launched by Steam and running under Proton
+    if (allow_steam_virtual_gamepad && WIN_IsWine()) {
+        // We are launched by Steam and running under Proton or Wine
         // We can't tell whether this controller is a Steam Virtual Gamepad,
-        // so assume that Proton is doing the appropriate filtering of controllers
+        // so assume that is doing the appropriate filtering of controllers
         // and anything we see here is fine to use.
         return false;
     }
 #endif // SDL_PLATFORM_WIN32
 
     if (SDL_IsJoystickSteamVirtualGamepad(vendor_id, product_id, version)) {
-        return !SDL_GetHintBoolean("SDL_GAMECONTROLLER_ALLOW_STEAM_VIRTUAL_GAMEPAD", false);
+        return !allow_steam_virtual_gamepad;
     }
 
     if (SDL_allowed_gamepads.num_included_entries > 0) {

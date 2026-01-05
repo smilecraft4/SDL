@@ -1,6 +1,6 @@
 /*
   Simple DirectMedia Layer
-  Copyright (C) 1997-2025 Sam Lantinga <slouken@libsdl.org>
+  Copyright (C) 1997-2026 Sam Lantinga <slouken@libsdl.org>
 
   This software is provided 'as-is', without any express or implied
   warranty.  In no event will the authors be held liable for any damages
@@ -2685,6 +2685,8 @@ static GIP_Attachment * HIDAPI_DriverGIP_FindAttachment(SDL_HIDAPI_Device *devic
 {
     GIP_Device *ctx = (GIP_Device *)device->context;
     int i;
+
+    SDL_AssertJoysticksLocked();
 
     for (i = 0; i < MAX_ATTACHMENTS; i++) {
         if (ctx->attachments[i] && ctx->attachments[i]->joystick == joystick->instance_id) {
