@@ -98,17 +98,17 @@ typedef struct tagWTROTATION { /* 1.1 */
 // #define PACKETDATA (PK_CURSOR | PK_X | PK_Y | PK_Z | PK_ROTATION | PK_NORMAL_PRESSURE |  PK_BUTTONS |  | PK_TANGENT_PRESSURE | PK_ORIENTATION )
 
 typedef struct tagWINTAB_PACKET {
-   // UINT           pkCursor;   
    DWORD          pkButtons;
    LONG           pkX;
    LONG           pkY;
-   // LONG           pkZ;
    UINT           pkNormalPressure;
-   // UINT           pkTangentPressure;
-   // WTORIENTATION  pkOrientation; /* replace tilt (needs convertion) */
-   // WTROTATION		pkRotation;
-   // WTTILT         pkTilt;
 } WINTAB_PACKET;
+
+typedef struct tagWINTAB_SDL_PACKET {
+   float           x;
+   float           y;
+   float           pressure;
+} WINTAB_SDL_PACKET;
 
 extern bool SDL_IsWintabEnabled(void);
 
@@ -118,8 +118,11 @@ extern void SDL_QuitWintab(void);
 extern bool SDL_OpenWintabCtx(HWND hwnd);
 extern void SDL_CloseWintabCtx(HWND hwnd);
 
+// extern bool SDL_WindowSupportWintab(HWND hwnd);
+
 extern SDL_PenInfo SDL_GetWintabPenInfo();
-extern bool SDL_GetWintabPacket(HCTX hCtx, UINT wSerial, WINTAB_PACKET* packet);
+extern bool SDL_GetWintabPacket(HWND hwnd, HCTX hCtx, UINT wSerial, WINTAB_SDL_PACKET* packet);
+
 
 #ifdef __cplusplus
 }

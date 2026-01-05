@@ -232,7 +232,7 @@ typedef struct tagAXIS
 typedef UINT(WTAPI *WTINFO)(UINT wCategory, UINT nIndex, LPVOID lpOutput);
 typedef HCTX(WTAPI *WTOPEN)(HWND hWnd, LPLOGCONTEXTA lpLogCtx, BOOL fEnable);
 typedef BOOL(WTAPI *WTCLOSE)(HCTX hCtx);
-typedef BOOL (WTAPI* WTPACKET)(HCTX hCtx, UINT wSerial, LPVOID lpPkt);
+typedef BOOL(WTAPI* WTPACKET)(HCTX hCtx, UINT wSerial, LPVOID lpPkt);
 
 static HINSTANCE wintab = NULL;
 
@@ -240,6 +240,19 @@ static WTINFO WTInfo = NULL;
 static WTOPEN WTOpen = NULL;
 static WTCLOSE WTClose = NULL;
 static WTPACKET WTPacket = NULL;
+
+static float sys_width = 0.0f;
+static float sys_height = 0.0f;
+
+typedef struct tagHCTX_INFO {
+    LOGCONTEXTA lctx;
+    char* name;
+    HWND hwnd;
+    HCTX hctx;
+    AXIS x;
+    AXIS y;
+    AXIS pressure;
+} HCTX_INFO, *PHCTX_INFO;
 
 static UINT attached_devices = 0;
 static SDL_HashTable *hctx_table = NULL;
@@ -300,6 +313,7 @@ void SDL_QuitWintab(void)
 
 bool SDL_OpenWintabCtx(HWND hwnd)
 {
+    // TODO: Respond to WT_CTXCLOSE & WT_CTXOPEN
     SDL_assert(hwnd != NULL && "hwnd must be valid");
     SDL_assert(hctx_table != NULL && "context table is invalid");
 
@@ -314,9 +328,9 @@ bool SDL_OpenWintabCtx(HWND hwnd)
     if (ctx_found > 0) {
         UINT result = 0;
         UINT ret = 0;
-        AXIS tablet_x = { 0 };
-        AXIS tablet_y = { 0 };
-        AXIS tablet_pressure = { 0 };
+        AXIS x_axis = { 0 };
+        AXIS y_axis = { 0 };
+        AXIS normal_pressure_axis = { 0 };
 
         ret = WTInfo(WTI_DEVICES + ctx_idx, DVC_HARDWARE, &result);
         const bool is_display_tablet = result & HWC_INTEGRATED;
@@ -337,32 +351,46 @@ bool SDL_OpenWintabCtx(HWND hwnd)
         lctx.lcMoveMask = PACKETDATA;
         lctx.lcBtnUpMask = lctx.lcBtnDnMask;
 
-        ret = WTInfo(WTI_DEVICES + ctx_idx, DVC_X, &tablet_x);
+        ret = WTInfo(WTI_DEVICES + ctx_idx, DVC_X, &x_axis);
         if (ret != sizeof(AXIS)) {
         SDL_SetError("Wintab does not have a X axis");
             return false;
         }
 
-        ret = WTInfo(WTI_DEVICES + ctx_idx, DVC_Y, &tablet_y);
+        ret = WTInfo(WTI_DEVICES + ctx_idx, DVC_Y, &y_axis);
         if (ret != sizeof(AXIS)) {
         SDL_SetError("Wintab does not have a Y axis");
             return false;
         }
 
-        ret = WTInfo(WTI_DEVICES + ctx_idx, DVC_NPRESSURE, &tablet_pressure);
+        ret = WTInfo(WTI_DEVICES + ctx_idx, DVC_NPRESSURE, &normal_pressure_axis);
         if (ret != sizeof(AXIS)) {
         SDL_SetError("Wintab does not have a pressure axis");
             return false;
         }
 
+        lctx.lcOutExtX = x_axis.axMax - x_axis.axMin + 1;
+        lctx.lcOutExtY = y_axis.axMax - y_axis.axMin + 1;
+        // lctx.lcOutExtX++;
         lctx.lcOutExtY = -lctx.lcOutExtY; // move origin to top left
 
         HCTX hctx = WTOpen(hwnd, &lctx, true);
         if (hctx) {
-            const bool success = SDL_InsertIntoHashTable(hctx_table, hwnd, hctx, false);
+
+            PHCTX_INFO pinfo = (PHCTX_INFO)SDL_malloc(sizeof(HCTX_INFO));
+            SDL_zero(*pinfo);
+
+            pinfo->lctx = lctx;
+            pinfo->hwnd = hwnd;
+            pinfo->hctx = hctx;
+            pinfo->name = SDL_strdup(name);
+            pinfo->x = x_axis;
+            pinfo->y = y_axis;
+            pinfo->pressure = normal_pressure_axis;
+
+            const bool success = SDL_InsertIntoHashTable(hctx_table, hwnd, pinfo, false);
             SDL_assert(success && "A wintab context already exists for this hwnd");
         }
-        // TODO: Save this ctx for this hwnd
     } else {
         SDL_SetError("No wintab context available");
         return false;
@@ -373,10 +401,12 @@ bool SDL_OpenWintabCtx(HWND hwnd)
 
 void SDL_CloseWintabCtx(HWND hwnd)
 {
-    HCTX hctx;
-    if(SDL_FindInHashTable(hctx_table, hwnd, &hctx)) {
-        WTClose(hctx);
+    PHCTX_INFO pinfo;
+    if(SDL_FindInHashTable(hctx_table, hwnd, &pinfo)) {
+        WTClose(pinfo->hctx);
+        SDL_free(pinfo->name);
         SDL_RemoveFromHashTable(hctx_table, hwnd);
+        SDL_free(pinfo);
     }
 }
 
@@ -408,15 +438,34 @@ SDL_PenInfo SDL_GetWintabPenInfo()
     return info;
 }
 
-bool SDL_GetWintabPacket(HCTX hCtx, UINT wSerial, WINTAB_PACKET* packet)
+bool SDL_GetWintabPacket(HWND hwnd, HCTX hCtx, UINT wSerial, WINTAB_SDL_PACKET* packet)
 {
     SDL_assert(SDL_IsWintabEnabled());
 
-    if(!WTPacket(hCtx, wSerial, packet)) {
+    WINTAB_PACKET wt_packet;
+    if(!WTPacket(hCtx, wSerial, &wt_packet)) {
         SDL_SetError("Wintab packet not found in queue");
         return false;
     }
 
+    PHCTX_INFO pinfo;
+    bool found = SDL_FindInHashTable(hctx_table, hwnd, &pinfo);
+    SDL_assert(found);
+
+    // TODO: cache this 
+	const float sysWidth = (float)GetSystemMetrics(SM_CXVIRTUALSCREEN);
+	const float sysHeight = (float)GetSystemMetrics(SM_CYVIRTUALSCREEN);
+	const float sysOrigX = (float)GetSystemMetrics(SM_XVIRTUALSCREEN);
+	const float sysOrigY = (float)GetSystemMetrics(SM_YVIRTUALSCREEN);
+
+    POINT position;
+    position.x = 0;
+    position.y = 0;
+    ClientToScreen(hwnd, &position);
+
+    packet->x = sysOrigX + (sysWidth * ((float)wt_packet.pkX / (float)pinfo->x.axMax)) - position.x;
+    packet->y = sysOrigY + (sysHeight * ((float)wt_packet.pkY / (float)pinfo->y.axMax)) - position.y;
+    packet->pressure = (float)wt_packet.pkNormalPressure / (float)pinfo->pressure.axMax;
 
     return true;
 }

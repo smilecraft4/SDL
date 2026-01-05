@@ -1219,38 +1219,25 @@ LRESULT CALLBACK WIN_WindowProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lPara
         case WT_PACKET:
         {
             SDL_Log("WT_PACKET");
-            WINTAB_PACKET packet;
+            WINTAB_SDL_PACKET packet;
             const HCTX hctx = (HCTX)lParam;
-            if(SDL_GetWintabPacket(hctx, (UINT)wParam, &packet)) {                
+            if(SDL_GetWintabPacket(hwnd, hctx, (UINT)wParam, &packet)) {                
                 const SDL_PenID pen = SDL_FindPenByHandle(hctx);
                 const Uint64 timestamp = WIN_GetEventTimestamp();
                 SDL_Window *window = data->window;
                 
                 // SDL_SendPenMotion(timestamp, pen, window, (float) packet.pkX, (float) packet.pkY);
 
-                if (packet.pkNormalPressure == 0) {
+                if (packet.pressure == 0.0f) {
                     SDL_SendPenTouch(timestamp, pen, window, false, false);
                 }
 
-                POINT position;
-                position.x = packet.pkX;
-                position.y = packet.pkY;
-                ScreenToClient(data->hwnd, &position);
-                SDL_SendPenMotion(timestamp, pen, window, (float)(double)position.x, (float)(double)position.y);
+                SDL_SendPenMotion(timestamp, pen, window, packet.x, packet.y);
 
-                // if(packet.pkButtons == 1) {
-                //     SDL_SendPenButton(timestamp, pen, window, 1, false);
-                // } else if (packet.pkButtons == 2) {
-                //     SDL_SendPenButton(timestamp, pen, window, 1, true);
-                // }
-
-                SDL_SendPenAxis(timestamp, pen, window, SDL_PEN_AXIS_PRESSURE, ((float) packet.pkNormalPressure) / 8192.0f);
-                // SDL_SendPenAxis(timestamp, pen, window, SDL_PEN_AXIS_ROTATION, ((float) packet.pkRotation.roRoll));  // it's already in the range of 0 to 359.
-                // SDL_SendPenAxis(timestamp, pen, window, SDL_PEN_AXIS_XTILT, ((float) packet.pkOrientation.orAltitude));  // it's already in the range of -90 to 90..
-                // SDL_SendPenAxis(timestamp, pen, window, SDL_PEN_AXIS_YTILT, ((float) packet.pkOrientation.orAzimuth));  // it's already in the range of -90 to 90..
+                SDL_SendPenAxis(timestamp, pen, window, SDL_PEN_AXIS_PRESSURE, packet.pressure);
 
                 // if setting down, do it last, so the pen is positioned correctly from the first contact.
-                if (packet.pkNormalPressure > 0) {
+                if (packet.pressure > 0.0f) {
                     SDL_SendPenTouch(timestamp, pen, window, false, true);
                 }
 
