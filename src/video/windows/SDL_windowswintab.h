@@ -68,42 +68,6 @@ DECLARE_HANDLE(HCTX); /* context handle */
 
 #endif
 
-
-// typedef struct tagWTTILT { /* 1.1 */
-// 	int tiltX;
-// 	int tiltY;
-// } WTTILT;
-
-typedef struct tagWTORIENTATION {
-	int orAzimuth;
-	int orAltitude;
-	int orTwist;
-} WTORIENTATION;//, *PWTORIENTATION, NEAR *NPWTORIENTATION, FAR *LPWTORIENTATION;
-
-typedef struct tagWTROTATION { /* 1.1 */
-	int roPitch;
-	int roRoll;
-	int roYaw;
-} WTROTATION;//, *PWTROTATION, NEAR *NPWTROTATION, FAR *LPWTROTATION;
-
-//  SDL_PEN_AXIS_PRESSURE,  /**< Pen pressure.  Unidirectional: 0 to 1.0 */
-//  SDL_PEN_AXIS_XTILT,     /**< Pen horizontal tilt angle.  Bidirectional: -90.0 to 90.0 (left-to-right). */
-//  SDL_PEN_AXIS_YTILT,     /**< Pen vertical tilt angle.  Bidirectional: -90.0 to 90.0 (top-to-down). */
-//  SDL_PEN_AXIS_DISTANCE,  /**< Pen distance to drawing surface.  Unidirectional: 0.0 to 1.0 */
-//  SDL_PEN_AXIS_ROTATION,  /**< Pen barrel rotation.  Bidirectional: -180 to 179.9 (clockwise, 0 is facing up, -180.0 is facing down). */
-//  SDL_PEN_AXIS_SLIDER,    /**< Pen finger wheel or slider (e.g., Airbrush Pen).  Unidirectional: 0 to 1.0 */
-//  SDL_PEN_AXIS_TANGENTIAL_PRESSURE,    /**< Pressure from squeezing the pen ("barrel pressure"). */
-//  SDL_PEN_AXIS_COUNT       /**< Total known pen axis types in this version of SDL. This number may grow in future releases! */
-
-// #define PACKETDATA (PK_CURSOR | PK_X | PK_Y | PK_Z | PK_ROTATION | PK_NORMAL_PRESSURE |  PK_BUTTONS |  | PK_TANGENT_PRESSURE | PK_ORIENTATION )
-
-typedef struct tagWINTAB_PACKET {
-   DWORD          pkButtons;
-   LONG           pkX;
-   LONG           pkY;
-   UINT           pkNormalPressure;
-} WINTAB_PACKET;
-
 typedef struct tagWINTAB_SDL_PACKET {
    float           x;
    float           y;

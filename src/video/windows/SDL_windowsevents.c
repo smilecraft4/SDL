@@ -1214,11 +1214,17 @@ LRESULT CALLBACK WIN_WindowProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lPara
             const bool in_hctx = LOWORD(lParam) != 0;
 
             if(in_hctx) {
-                SDL_Log("Entered Context");
                 SDL_PenInfo info = SDL_GetWintabPenInfo(&info);
+
+                // if a pen is already found delete the old pen, WT_PROXMITY may signal mutlitple cursors idk
+                const SDL_PenID pen = SDL_FindPenByHandle(hctx);
+                if(pen != 0) {
+                    SDL_RemovePenDevice(WIN_GetEventTimestamp(), data->window, pen);
+                }
+
+
                 SDL_AddPenDevice(WIN_GetEventTimestamp(), "Wintab pen", data->window, &info, hctx, true); // We pass the hctx to identify this pen (likely bug prone)
             } else {
-                SDL_Log("Exited Context");
                 const SDL_PenID pen = SDL_FindPenByHandle(hctx);
                 if (pen == 0) {
                     break;  // not a pen, or not a pen we already knew about.
@@ -1231,7 +1237,6 @@ LRESULT CALLBACK WIN_WindowProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lPara
         }
         case WT_PACKET:
         {
-            SDL_Log("WT_PACKET");
             WINTAB_SDL_PACKET packet;
             const HCTX hctx = (HCTX)lParam;
             if(SDL_GetWintabPacket(hwnd, hctx, (UINT)wParam, &packet)) {                

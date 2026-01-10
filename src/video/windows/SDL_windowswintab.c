@@ -229,6 +229,30 @@ typedef struct tagAXIS
     FIX32 axResolution;
 } AXIS, *PAXIS, NEAR *NPAXIS, FAR *LPAXIS;
 
+typedef struct tagWTTILT { /* 1.1 */
+	int tiltX;
+	int tiltY;
+} WTTILT;
+
+typedef struct tagWTORIENTATION {
+	int orAzimuth;
+	int orAltitude;
+	int orTwist;
+} WTORIENTATION;//, *PWTORIENTATION, NEAR *NPWTORIENTATION, FAR *LPWTORIENTATION;
+
+typedef struct tagWTROTATION { /* 1.1 */
+	int roPitch;
+	int roRoll;
+	int roYaw;
+} WTROTATION;
+
+typedef struct tagWINTAB_PACKET {
+   DWORD          pkButtons;
+   LONG           pkX;
+   LONG           pkY;
+   UINT           pkNormalPressure;
+} WINTAB_PACKET;
+
 typedef UINT(WTAPI *WTINFO)(UINT wCategory, UINT nIndex, LPVOID lpOutput);
 typedef HCTX(WTAPI *WTOPEN)(HWND hWnd, LPLOGCONTEXTA lpLogCtx, BOOL fEnable);
 typedef BOOL(WTAPI *WTCLOSE)(HCTX hCtx);
@@ -321,7 +345,7 @@ bool SDL_OpenWintabCtx(HWND hwnd)
     char *device_name = NULL;
 
     WTInfo(WTI_INTERFACE, IFC_NDEVICES, &attached_devices);
-    SDL_Log("wintab attached devices num: %u", attached_devices);
+    // SDL_Log("wintab attached devices num: %u", attached_devices);
 
     LOGCONTEXTA lctx = { 0 };
     const UINT ctx_found = WTInfo(WTI_DEFSYSCTX, 0, &lctx);
@@ -342,7 +366,7 @@ bool SDL_OpenWintabCtx(HWND hwnd)
         char name[1024];
         SDL_memset(name, '/0', sizeof(name));
         ret = WTInfo(WTI_DEVICES + ctx_idx, DVC_NAME, &name);
-        SDL_Log("Context name: %s", name);
+        // SDL_Log("Context name: %s", name);
 
         lctx.lcPktData = PACKETDATA;
         lctx.lcOptions |= CXO_MESSAGES; // send WindowProc messsages
@@ -371,7 +395,6 @@ bool SDL_OpenWintabCtx(HWND hwnd)
 
         lctx.lcOutExtX = x_axis.axMax - x_axis.axMin + 1;
         lctx.lcOutExtY = y_axis.axMax - y_axis.axMin + 1;
-        // lctx.lcOutExtX++;
         lctx.lcOutExtY = -lctx.lcOutExtY; // move origin to top left
 
         HCTX hctx = WTOpen(hwnd, &lctx, true);
